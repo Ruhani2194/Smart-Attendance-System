@@ -1,0 +1,695 @@
+{% extends "layout.html" %}
+
+{% block title %}Take Attendance - Smart Attendance System{% endblock %}
+
+{% block styles %}
+<style>
+    .camera-container {
+        position: relative;
+        width: 100%;
+        background-color: #f0f0f0;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 20px;
+    }
+    .video-container {
+        width: 100%;
+        height: 450px;
+        background-color: #222;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+    }
+    #videoElement {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: none;
+    }
+    .camera-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: rgba(0,0,0,0.7);
+        color: white;
+    }
+    .camera-overlay i {
+        font-size: 60px;
+        margin-bottom: 15px;
+    }
+    .camera-controls {
+        position: absolute;
+        bottom: 20px;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+    }
+    .camera-btn {
+        background-color: rgba(0,0,0,0.6);
+        color: white;
+        border: none;
+        border-radius: 30px;
+        padding: 10px 20px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .camera-btn:hover {
+        background-color: rgba(0,0,0,0.8);
+    }
+    .camera-btn i {
+        font-size: 16px;
+    }
+    .camera-btn.stop {
+        background-color: rgba(220,53,69,0.7);
+    }
+    .camera-btn.stop:hover {
+        background-color: rgba(220,53,69,0.9);
+    }
+    .recognition-container {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background-color: rgba(0,0,0,0.6);
+        color: white;
+        padding: 10px 15px;
+        border-radius: 5px;
+        display: none;
+    }
+    .success-notification {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        background-color: rgba(40,167,69,0.9);
+        color: white;
+        padding: 15px;
+        text-align: center;
+        transform: translateY(-100%);
+        transition: transform 0.5s;
+    }
+    .success-notification.show {
+        transform: translateY(0);
+    }
+    #attendanceTable {
+        border-collapse: separate;
+        border-spacing: 0;
+        background-color: white;
+    }
+    #attendanceTable th {
+        background-color: #4e73df;
+        color: white;
+        font-weight: 500;
+    }
+    #attendanceTable th:first-child {
+        border-top-left-radius: 5px;
+    }
+    #attendanceTable th:last-child {
+        border-top-right-radius: 5px;
+    }
+    #attendanceTable tbody tr:nth-child(odd) {
+        background-color: #f8f9fc;
+    }
+    #attendanceTable tbody tr:hover {
+        background-color: #eaecf4;
+    }
+    .table-container {
+        border-radius: 5px;
+        overflow: hidden;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    }
+    .recognition-status {
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        z-index: 10;
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: bold;
+    }
+    .attendance-card {
+        background-color: white;
+        border-radius: 10px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        padding: 25px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row align-items-center mb-4">
+    <div class="col-md-6">
+        <h1 class="h3 mb-0 text-gray-800">Take Attendance</h1>
+        <p class="text-muted">Automatically mark attendance using facial recognition</p>
+    </div>
+    <div class="col-md-6 text-md-end">
+        <button type="button" class="btn btn-outline-primary me-2" id="exportDataBtn">
+            <i class="fas fa-file-csv me-1"></i> Export Data
+        </button>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+            <i class="fas fa-chevron-left me-1"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8 col-md-7 mb-4">
+        <div class="attendance-card">
+            <div class="mb-3">
+                <h5 class="card-title">Camera View</h5>
+                <p class="text-muted">Position students in front of the camera for automatic recognition</p>
+            </div>
+            
+            <!-- Manual student selection for more reliable marking -->
+            <div class="alert alert-primary mb-3">
+                <h6><i class="fas fa-user-check me-2"></i>Manually Mark Attendance</h6>
+                <p class="small mb-2">Select a student below to mark them present:</p>
+                <div class="row g-2 mb-2">
+                    <div class="col-12">
+                        <form action="/api/manual-mark" method="post">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <select name="student_id" class="form-select" required>
+                                        <option value="">Choose a student...</option>
+                                        <option value="2181">Romani Gupta</option>
+                                        <option value="2194">Ruhani Munjal</option>
+                                        <option value="2195">Shakshi Tyagi</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <button type="submit" class="btn btn-primary w-100">Mark Student Present</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <div class="small text-muted"><i class="fas fa-info-circle"></i> This direct method ensures reliable attendance marking.</div>
+            </div>
+            
+            <div class="camera-container">
+                <span class="badge recognition-status bg-secondary" id="recognitionStatus">Ready</span>
+                
+                <div class="video-container" id="cameraPlaceholder">
+                    <div class="text-center">
+                        <i class="fas fa-camera mb-2" style="font-size: 40px;"></i>
+                        <h5>Camera Preview</h5>
+                        <p>Click 'Start Recognition' to activate the camera</p>
+                    </div>
+                </div>
+                
+                <video id="videoElement" autoplay></video>
+                <canvas id="canvas" style="display:none;"></canvas>
+                
+                <div class="camera-overlay" id="cameraOverlay" style="display:none;">
+                    <div class="text-center">
+                        <i class="fas fa-camera-retro"></i>
+                        <h4>Camera Initializing...</h4>
+                    </div>
+                </div>
+                
+                <div class="success-notification" id="successNotification">
+                    <div class="d-flex align-items-center justify-content-center">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <span id="notificationText">Attendance marked successfully!</span>
+                    </div>
+                </div>
+                
+                <div class="recognition-container" id="recognitionInfo">
+                    <div class="fw-bold mb-1" id="recognizedName">Recognized: -</div>
+                    <div id="recognizedTime">Time: -</div>
+                </div>
+                
+                <div class="camera-controls">
+                    <button class="camera-btn" id="startRecognitionBtn">
+                        <i class="fas fa-play"></i> Start Recognition
+                    </button>
+                    <button class="camera-btn stop" id="stopRecognitionBtn" style="display:none;">
+                        <i class="fas fa-stop"></i> Stop
+                    </button>
+                </div>
+            </div>
+            
+            <div class="row gx-4 mb-3">
+                <div class="col-md-6">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body py-3">
+                            <div class="row align-items-center">
+                                <div class="col-9">
+                                    <h2 class="mb-0 fw-bold" id="totalRecognized">0</h2>
+                                    <div>Students Recognized</div>
+                                </div>
+                                <div class="col-3 text-end">
+                                    <i class="fas fa-users-viewfinder" style="font-size: 28px; opacity: 0.7;"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card bg-success text-white">
+                        <div class="card-body py-3">
+                            <div class="row align-items-center">
+                                <div class="col-9">
+                                    <h2 class="mb-0 fw-bold" id="currentStatus">Ready</h2>
+                                    <div>Current Status</div>
+                                </div>
+                                <div class="col-3 text-end">
+                                    <i class="fas fa-check-circle" style="font-size: 28px; opacity: 0.7;"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="alert alert-info">
+                <div class="d-flex">
+                    <div class="me-3">
+                        <i class="fas fa-info-circle" style="font-size: 24px;"></i>
+                    </div>
+                    <div>
+                        <h5 class="alert-heading">How to use:</h5>
+                        <p class="mb-0">Click "Start Recognition" and position students' faces in front of the camera. The system will automatically recognize registered students and mark their attendance.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4 col-md-5">
+        <div class="attendance-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="card-title mb-0">Today's Attendance</h5>
+                <span class="badge bg-primary" id="attendanceDate">{{ current_date }}</span>
+            </div>
+            
+            <div class="table-container">
+                <table class="table table-hover mb-0" id="attendanceTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attendanceTableBody">
+                        <tr class="text-center text-muted">
+                            <td colspan="3">No attendance records yet</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="d-flex justify-content-end mt-3">
+                <button class="btn btn-sm btn-outline-primary" id="clearTableBtn">
+                    <i class="fas fa-trash-alt me-1"></i> Clear Table
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // DOM elements
+        const videoElement = document.getElementById('videoElement');
+        const canvas = document.getElementById('canvas');
+        const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+        const cameraOverlay = document.getElementById('cameraOverlay');
+        const startRecognitionBtn = document.getElementById('startRecognitionBtn');
+        const stopRecognitionBtn = document.getElementById('stopRecognitionBtn');
+        const recognitionStatus = document.getElementById('recognitionStatus');
+        const recognitionInfo = document.getElementById('recognitionInfo');
+        const recognizedName = document.getElementById('recognizedName');
+        const recognizedTime = document.getElementById('recognizedTime');
+        const successNotification = document.getElementById('successNotification');
+        const notificationText = document.getElementById('notificationText');
+        const attendanceTableBody = document.getElementById('attendanceTableBody');
+        const totalRecognized = document.getElementById('totalRecognized');
+        const currentStatus = document.getElementById('currentStatus');
+        const clearTableBtn = document.getElementById('clearTableBtn');
+        const exportDataBtn = document.getElementById('exportDataBtn');
+        
+        // These elements only exist in the old version, not in the new form-based version
+        const manualStudentSelect = document.getElementById('manualStudentSelect');
+        const markManualAttendanceBtn = document.getElementById('markManualAttendanceBtn');
+        
+        // Variables
+        let streamRef = null;
+        let recognitionInterval = null;
+        let isRecognizing = false;
+        let attendanceCount = 0;
+        let recognizedStudents = new Set();
+        
+        // Only load student list if we're using the JavaScript-based approach
+        if (manualStudentSelect && markManualAttendanceBtn) {
+            loadStudentList();
+            
+            // Manual attendance button
+            markManualAttendanceBtn.addEventListener('click', function() {
+                const selectedOption = manualStudentSelect.options[manualStudentSelect.selectedIndex];
+                if (selectedOption.value) {
+                    markManualAttendance(selectedOption.value, selectedOption.text);
+                } else {
+                    showAlert('warning', 'Please select a student first');
+                }
+            });
+        }
+        
+        // Start recognition button
+        startRecognitionBtn.addEventListener('click', function() {
+            startRecognition();
+        });
+        
+        // Stop recognition button
+        stopRecognitionBtn.addEventListener('click', function() {
+            stopRecognition();
+        });
+        
+        // Clear table button
+        clearTableBtn.addEventListener('click', function() {
+            if (confirm('Are you sure you want to clear the attendance table? This will only clear the display, not the saved records.')) {
+                clearAttendanceTable();
+            }
+        });
+        
+        // Export data button
+        if (exportDataBtn) {
+            exportDataBtn.addEventListener('click', function() {
+                alert('Data would be exported to CSV in a real implementation.');
+            });
+        }
+        
+        // Start recognition
+        function startRecognition() {
+            cameraOverlay.style.display = 'flex';
+            recognitionStatus.textContent = 'Starting...';
+            recognitionStatus.className = 'badge recognition-status bg-warning';
+            currentStatus.textContent = 'Starting';
+            
+            // Request camera access
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(function(stream) {
+                    streamRef = stream;
+                    videoElement.srcObject = stream;
+                    videoElement.style.display = 'block';
+                    cameraPlaceholder.style.display = 'none';
+                    cameraOverlay.style.display = 'none';
+                    
+                    // Update controls
+                    startRecognitionBtn.style.display = 'none';
+                    stopRecognitionBtn.style.display = 'inline-flex';
+                    
+                    // Update status
+                    recognitionStatus.textContent = 'Active';
+                    recognitionStatus.className = 'badge recognition-status bg-success';
+                    currentStatus.textContent = 'Active';
+                    
+                    // Start recognition process
+                    startFaceRecognition();
+                })
+                .catch(function(err) {
+                    console.error('Error accessing camera: ', err);
+                    cameraOverlay.style.display = 'none';
+                    recognitionStatus.textContent = 'Error';
+                    recognitionStatus.className = 'badge recognition-status bg-danger';
+                    currentStatus.textContent = 'Error';
+                    showAlert('danger', 'Could not access camera. Please ensure you have a camera connected and you have granted permission.');
+                });
+        }
+        
+        // Start face recognition
+        function startFaceRecognition() {
+            if (isRecognizing) return;
+            
+            isRecognizing = true;
+            
+            // Set up interval to process frames
+            recognitionInterval = setInterval(function() {
+                processVideoFrame();
+            }, 1000);  // Process every second
+        }
+        
+        // Process video frame
+        function processVideoFrame() {
+            const context = canvas.getContext('2d');
+            canvas.width = videoElement.videoWidth;
+            canvas.height = videoElement.videoHeight;
+            context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+            
+            // Get the image data
+            const imageData = canvas.toDataURL('image/jpeg');
+            
+            // Get CSRF token from meta tag
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            
+            // Send to server for recognition
+            fetch('/api/mark-attendance', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    image_data: imageData
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.recognized) {
+                    // Recognition successful
+                    const studentId = data.student_id;
+                    const studentName = data.student_name;
+                    
+                    // Check if this is a new attendance marking or already present
+                    if (data.attendance_marked) {
+                        // New attendance marked
+                        if (!recognizedStudents.has(studentId)) {
+                            recognizedStudents.add(studentId);
+                            updateAttendanceTable(studentId, studentName);
+                            showSuccessNotification(`Attendance marked for ${studentName}`);
+                            
+                            // Update recognition info
+                            recognitionInfo.style.display = 'block';
+                            recognizedName.textContent = `Recognized: ${studentName}`;
+                            recognizedTime.textContent = `Time: ${getCurrentTime()}`;
+                            
+                            // Update status
+                            recognitionStatus.textContent = 'Success';
+                            recognitionStatus.className = 'badge recognition-status bg-success';
+                            currentStatus.textContent = 'Marked';
+                        }
+                    } else {
+                        // Already present
+                        showSuccessNotification(`${studentName} is already marked present today`);
+                        recognitionStatus.textContent = 'Already Present';
+                        recognitionStatus.className = 'badge recognition-status bg-warning';
+                    }
+                } else {
+                    // Recognition failed
+                    recognitionStatus.textContent = 'Retry';
+                    recognitionStatus.className = 'badge recognition-status bg-warning';
+                    showSuccessNotification(data.message || 'Face not recognized, please try again');
+                }
+            })
+            .catch(error => {
+                console.error('Error processing frame:', error);
+            });
+        }
+        
+        // Update attendance table
+        function updateAttendanceTable(studentId, studentName) {
+            // Clear the "no records" row if it exists
+            if (attendanceTableBody.querySelector('.text-center.text-muted')) {
+                attendanceTableBody.innerHTML = '';
+            }
+            
+            // Create new row
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${studentId}</td>
+                <td>${studentName}</td>
+                <td>${getCurrentTime()}</td>
+            `;
+            
+            // Insert at the top
+            attendanceTableBody.insertBefore(row, attendanceTableBody.firstChild);
+            
+            // Update count
+            attendanceCount++;
+            totalRecognized.textContent = attendanceCount;
+        }
+        
+        // Clear attendance table
+        function clearAttendanceTable() {
+            attendanceTableBody.innerHTML = `
+                <tr class="text-center text-muted">
+                    <td colspan="3">No attendance records yet</td>
+                </tr>
+            `;
+            recognizedStudents.clear();
+            attendanceCount = 0;
+            totalRecognized.textContent = '0';
+        }
+        
+        // Show success notification
+        function showSuccessNotification(message) {
+            notificationText.textContent = message;
+            successNotification.classList.add('show');
+            
+            setTimeout(function() {
+                successNotification.classList.remove('show');
+            }, 3000);
+        }
+        
+        // Stop recognition
+        function stopRecognition() {
+            clearInterval(recognitionInterval);
+            isRecognizing = false;
+            
+            if (streamRef) {
+                streamRef.getTracks().forEach(track => track.stop());
+                streamRef = null;
+            }
+            
+            videoElement.srcObject = null;
+            videoElement.style.display = 'none';
+            cameraPlaceholder.style.display = 'flex';
+            recognitionInfo.style.display = 'none';
+            
+            // Update controls
+            startRecognitionBtn.style.display = 'inline-flex';
+            stopRecognitionBtn.style.display = 'none';
+            
+            // Update status
+            recognitionStatus.textContent = 'Stopped';
+            recognitionStatus.className = 'badge recognition-status bg-secondary';
+            currentStatus.textContent = 'Stopped';
+        }
+        
+        // Get current time
+        function getCurrentTime() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            return `${hours}:${minutes}:${seconds}`;
+        }
+        
+        // Show alert
+        function showAlert(type, message) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            
+            const container = document.querySelector('main.container');
+            container.insertBefore(alertDiv, container.firstChild);
+            
+            // Auto dismiss after 5 seconds
+            setTimeout(() => {
+                alertDiv.classList.remove('show');
+                setTimeout(() => alertDiv.remove(), 200);
+            }, 5000);
+        }
+        
+        // Load student list for manual selection
+        function loadStudentList() {
+            // Get CSRF token from meta tag
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            
+            // Fetch student list from API
+            fetch('/api/students', {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': csrfToken
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Clear current options
+                    manualStudentSelect.innerHTML = '<option value="">Choose a student...</option>';
+                    
+                    // Add each student as an option
+                    // Handle both response formats (data.students or data.data)
+                    const studentList = data.students || data.data || [];
+                    studentList.forEach(student => {
+                        const option = document.createElement('option');
+                        option.value = student.ID;
+                        option.textContent = student.Name;
+                        manualStudentSelect.appendChild(option);
+                    });
+                } else {
+                    showAlert('warning', 'Could not load student list. ' + (data.message || ''));
+                }
+            })
+            .catch(error => {
+                console.error('Error loading student list:', error);
+                showAlert('danger', 'Error loading student list. Please try refreshing the page.');
+            });
+        }
+        
+        // Mark manual attendance
+        function markManualAttendance(studentId, studentName) {
+            // Get CSRF token from meta tag
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            
+            // Call the manual attendance API
+            fetch('/api/manual-attendance', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    student_id: studentId,
+                    student_name: studentName
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.attendance_marked) {
+                        // New attendance marked
+                        if (!recognizedStudents.has(studentId)) {
+                            recognizedStudents.add(studentId);
+                            updateAttendanceTable(studentId, studentName);
+                            showSuccessNotification(`Attendance marked for ${studentName}`);
+                        }
+                    } else {
+                        // Already present
+                        showSuccessNotification(`${studentName} is already marked present today`);
+                    }
+                } else {
+                    showAlert('warning', data.message || 'Could not mark attendance');
+                }
+            })
+            .catch(error => {
+                console.error('Error marking manual attendance:', error);
+                showAlert('danger', 'Error marking attendance. Please try again.');
+            });
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,985 @@
+{% extends "layout.html" %}
+
+{% block title %}Student Registration - Smart Attendance System{% endblock %}
+
+{% block styles %}
+<style>
+    .capture-container {
+        position: relative;
+        width: 100%;
+        background-color: #f0f0f0;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 20px;
+    }
+    .video-container {
+        width: 100%;
+        height: 375px;
+        background-color: #222;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+    }
+    #videoElement {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: none;
+    }
+    #capturedPhotos {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 15px;
+    }
+    .captured-img {
+        width: 100px;
+        height: 100px;
+        object-fit: cover;
+        border-radius: 5px;
+        border: 2px solid #4e73df;
+    }
+    .camera-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: rgba(0,0,0,0.7);
+        color: white;
+    }
+    .camera-overlay i {
+        font-size: 60px;
+        margin-bottom: 15px;
+    }
+    .progress-container {
+        margin-top: 20px;
+    }
+    .instructions-container {
+        background-color: #f8f9fc;
+        border-left: 4px solid #4e73df;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 5px;
+    }
+    .step-item {
+        margin-bottom: 10px;
+        display: flex;
+        align-items: flex-start;
+    }
+    .step-number {
+        background-color: #4e73df;
+        color: white;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 10px;
+        font-weight: bold;
+        flex-shrink: 0;
+    }
+    .step-text {
+        line-height: 1.5;
+    }
+    .form-card {
+        background-color: white;
+        border-radius: 10px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        padding: 25px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Students Management Modal -->
+<div class="modal fade" id="studentsManagementModal" tabindex="-1" aria-labelledby="studentsManagementModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="studentsManagementModalLabel">Manage Student Registrations</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning" id="deleteWarning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Warning: Deleting a student will permanently remove their profile and training data. This action cannot be undone.
+                </div>
+                
+                <div id="studentListLoader" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading student registrations...</p>
+                </div>
+                
+                <div id="studentListEmpty" class="text-center py-4 d-none">
+                    <i class="fas fa-user-slash" style="font-size: 48px; color: #cccccc;"></i>
+                    <p class="mt-3">No students registered yet.</p>
+                </div>
+                
+                <div id="studentListContainer" class="d-none">
+                    <div class="d-flex justify-content-between mb-3">
+                        <input type="text" class="form-control" id="studentSearchInput" placeholder="Search students..." style="max-width: 300px;">
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-hover table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Registration Date</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="studentListBody">
+                                <!-- Student rows will be populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-success" id="refreshStudentListBtn">
+                    <i class="fas fa-sync-alt me-1"></i> Refresh List
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmationModal" tabindex="-1" aria-labelledby="deleteConfirmationModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteConfirmationModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the following student?</p>
+                <div class="alert alert-secondary">
+                    <strong>ID:</strong> <span id="deleteStudentId"></span><br>
+                    <strong>Name:</strong> <span id="deleteStudentName"></span>
+                </div>
+                <p class="text-danger"><strong>Warning:</strong> This action cannot be undone and will permanently remove all training data associated with this student.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    <i class="fas fa-trash-alt me-1"></i> Delete Student
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row align-items-center mb-4">
+    <div class="col-md-6">
+        <h1 class="h3 mb-0 text-gray-800">Student Registration</h1>
+        <p class="text-muted">Register new students with facial recognition data</p>
+    </div>
+    <div class="col-md-6 text-md-end">
+        <button type="button" class="btn btn-outline-primary me-2" id="resetFormBtn">
+            <i class="fas fa-redo-alt me-1"></i> Reset Form
+        </button>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+            <i class="fas fa-chevron-left me-1"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Instructions</h6>
+            </div>
+            <div class="card-body">
+                <div class="instructions-container">
+                    <div class="step-item">
+                        <div class="step-number">1</div>
+                        <div class="step-text">Fill in the student details form with ID and Name.</div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-number">2</div>
+                        <div class="step-text">Click "Start Camera" and allow camera access when prompted.</div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-number">3</div>
+                        <div class="step-text">Keep the student's face centered and well-lit. Multiple images will be captured automatically.</div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-number">4</div>
+                        <div class="step-text">Once all images are captured, click "Save Profile" to complete registration.</div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-number">5</div>
+                        <div class="step-text">Click "Train Model" after registering all students to update the recognition model.</div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info" role="alert">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Make sure the student's face is clearly visible, well-lit, and facing the camera directly. The system will capture 100 images for more accurate recognition.
+                </div>
+                
+                <!-- Manage Registrations button -->
+                <div class="text-center mt-4">
+                    <button class="btn btn-info w-100" id="showRegisteredStudentsBtn">
+                        <i class="fas fa-list me-2"></i> Manage Student Registrations
+                    </button>
+                </div>
+                
+                <div class="text-center mt-4">
+                    <button class="btn btn-success" id="trainModelBtn" disabled>
+                        <i class="fas fa-cogs me-1"></i> Train Model
+                    </button>
+                    <div class="progress progress-container d-none">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width: 0%" id="trainingProgress"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card shadow">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">Registration Stats</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>Total Registrations:</div>
+                    <div class="font-weight-bold" id="totalRegistrations">{{ total_registrations }}</div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>Last Registered:</div>
+                    <div class="font-weight-bold" id="lastRegistered">-</div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>Model Status:</div>
+                    <span class="badge bg-warning" id="modelStatus">Not Trained</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-8">
+        <div class="row">
+            <div class="col-12">
+                <div class="form-card mb-4">
+                    <h5 class="mb-3">Student Details</h5>
+                    <form id="registrationForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="studentId" class="form-label">Student ID <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="studentId" name="student_id" placeholder="Enter unique student ID" required>
+                                <div class="invalid-feedback">Please enter a valid student ID.</div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="studentName" class="form-label">Student Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="studentName" name="student_name" placeholder="Enter student name" required>
+                                <div class="invalid-feedback">Please enter the student name.</div>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-end">
+                            <button type="button" class="btn btn-outline-secondary me-2" id="clearFormBtn">
+                                <i class="fas fa-eraser me-1"></i> Clear
+                            </button>
+                            <button type="submit" class="btn btn-primary" id="registerBtn">
+                                <i class="fas fa-user-plus me-1"></i> Register
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="col-12">
+                <div class="form-card">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">Facial Data Collection</h5>
+                        <span class="badge bg-primary" id="captureStatus">Waiting for registration</span>
+                    </div>
+                    
+                    <div class="capture-container">
+                        <div class="video-container" id="cameraPlaceholder">
+                            <div class="text-center">
+                                <i class="fas fa-camera mb-2" style="font-size: 40px;"></i>
+                                <h5>Camera Preview</h5>
+                                <p>Register a student first to activate the camera</p>
+                            </div>
+                        </div>
+                        <video id="videoElement" autoplay></video>
+                        <canvas id="canvas" style="display:none;"></canvas>
+                        <div class="camera-overlay" id="cameraOverlay" style="display:none;">
+                            <div class="text-center">
+                                <i class="fas fa-camera-retro"></i>
+                                <h4>Camera Initializing...</h4>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mb-3">
+                        <div>
+                            <span class="text-muted">Images Captured: </span>
+                            <span class="fw-bold" id="captureCount">0/100</span>
+                        </div>
+                        <div>
+                            <button type="button" class="btn btn-primary me-2" id="startCameraBtn" disabled>
+                                <i class="fas fa-video me-1"></i> Start Camera
+                            </button>
+                            <button type="button" class="btn btn-success" id="saveProfileBtn" disabled>
+                                <i class="fas fa-save me-1"></i> Save Profile
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="progress mb-3">
+                        <div class="progress-bar bg-primary" role="progressbar" style="width: 0%" id="captureProgress"></div>
+                    </div>
+                    
+                    <div id="capturedPhotos"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Student Management Modal
+    let studentsManagementModal;
+    let deleteConfirmationModal;
+    
+    // Initialize modals after DOM is fully loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize modals
+        studentsManagementModal = new bootstrap.Modal(document.getElementById('studentsManagementModal'));
+        deleteConfirmationModal = new bootstrap.Modal(document.getElementById('deleteConfirmationModal'));
+        
+        // Initialize student management elements
+        showRegisteredStudentsBtn = document.getElementById('showRegisteredStudentsBtn');
+        refreshStudentListBtn = document.getElementById('refreshStudentListBtn');
+        studentListLoader = document.getElementById('studentListLoader');
+        studentListEmpty = document.getElementById('studentListEmpty');
+        studentListContainer = document.getElementById('studentListContainer');
+        studentListBody = document.getElementById('studentListBody');
+        studentSearchInput = document.getElementById('studentSearchInput');
+        deleteStudentId = document.getElementById('deleteStudentId');
+        deleteStudentName = document.getElementById('deleteStudentName');
+        confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+        
+        // Open student management modal
+        showRegisteredStudentsBtn.addEventListener('click', function() {
+            studentsManagementModal.show();
+            loadStudentList();
+        });
+        
+        // Refresh student list
+        refreshStudentListBtn.addEventListener('click', loadStudentList);
+        
+        // Search functionality
+        studentSearchInput.addEventListener('input', function() {
+            filterStudentList(this.value.toLowerCase());
+        });
+    });
+    // Variables for student management
+    let studentsList = [];
+    
+    // Load student list
+    function loadStudentList() {
+        // Show loader, hide other states
+        studentListLoader.classList.remove('d-none');
+        studentListEmpty.classList.add('d-none');
+        studentListContainer.classList.add('d-none');
+        
+        console.log('Loading student list...');
+        
+        // Fetch students from API
+        fetch('/api/students')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Loaded students:', data);
+                studentListLoader.classList.add('d-none');
+                
+                if (data.success && data.students && data.students.length > 0) {
+                    // Ensure all student IDs are strings
+                    studentsList = data.students.map(student => ({
+                        ...student,
+                        ID: String(student.ID)
+                    }));
+                    
+                    console.log('Processed student list:', studentsList);
+                    
+                    // Show container
+                    studentListContainer.classList.remove('d-none');
+                    
+                    // Display students
+                    displayStudentList(studentsList);
+                } else {
+                    studentListEmpty.classList.remove('d-none');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching students:', error);
+                studentListLoader.classList.add('d-none');
+                studentListEmpty.classList.remove('d-none');
+            });
+    }
+    
+    // Display student list
+    function displayStudentList(students) {
+        studentListBody.innerHTML = '';
+        
+        students.forEach(student => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${student.ID || '-'}</td>
+                <td>${student.Name || '-'}</td>
+                <td>${student.RegistrationDate || '-'}</td>
+                <td class="text-center">
+                    <button class="btn btn-sm btn-danger delete-student-btn" data-id="${student.ID}" data-name="${student.Name}">
+                        <i class="fas fa-trash-alt"></i> Delete
+                    </button>
+                </td>
+            `;
+            studentListBody.appendChild(row);
+        });
+        
+        // Add event listeners to delete buttons
+        document.querySelectorAll('.delete-student-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const studentId = this.dataset.id;
+                const studentName = this.dataset.name;
+                showDeleteConfirmation(studentId, studentName);
+            });
+        });
+    }
+    
+    // Filter student list
+    function filterStudentList(searchTerm) {
+        if (!searchTerm) {
+            displayStudentList(studentsList);
+            return;
+        }
+        
+        const filteredStudents = studentsList.filter(student => {
+            const id = String(student.ID || '').toLowerCase();
+            const name = String(student.Name || '').toLowerCase();
+            return id.includes(searchTerm) || name.includes(searchTerm);
+        });
+        
+        displayStudentList(filteredStudents);
+    }
+    
+    // Show delete confirmation
+    function showDeleteConfirmation(studentId, studentName) {
+        deleteStudentId.textContent = studentId;
+        deleteStudentName.textContent = studentName;
+        
+        // Set onclick handler to confirmation button
+        confirmDeleteBtn.onclick = function() {
+            deleteStudent(studentId);
+        };
+        
+        deleteConfirmationModal.show();
+    }
+    
+    // Delete student
+    function deleteStudent(studentId) {
+        console.log('Deleting student with ID:', studentId);
+        
+        fetch(`/api/delete-student/${studentId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+            }
+        })
+        .then(response => {
+            console.log('Delete response status:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('Delete response data:', data);
+            
+            // Hide delete confirmation modal
+            deleteConfirmationModal.hide();
+            
+            if (data.success) {
+                // Show success message
+                showAlert('success', data.message);
+                
+                // Force page reload to update all data
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                // Show error message
+                showAlert('danger', data.message || 'Failed to delete student');
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting student:', error);
+            deleteConfirmationModal.hide();
+            showAlert('danger', 'An error occurred while deleting the student');
+        });
+    }
+    
+    // Update total registrations
+    function updateTotalRegistrations() {
+        const totalRegistrationsElement = document.getElementById('totalRegistrations');
+        
+        fetch('/api/students')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const count = data.students ? data.students.length : 0;
+                    totalRegistrationsElement.textContent = count;
+                }
+            })
+            .catch(error => {
+                console.error('Error updating total registrations:', error);
+            });
+    }
+    
+    // Show alert message
+    function showAlert(type, message) {
+        // Create alert element
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        // Find alert container or create one
+        let alertContainer = document.querySelector('.alert-container');
+        if (!alertContainer) {
+            alertContainer = document.createElement('div');
+            alertContainer.className = 'alert-container position-fixed top-0 end-0 p-3';
+            alertContainer.style.zIndex = '1050';
+            document.body.appendChild(alertContainer);
+        }
+        
+        // Add alert to container
+        alertContainer.appendChild(alertDiv);
+        
+        // Remove after 5 seconds
+        setTimeout(() => {
+            alertDiv.classList.remove('show');
+            setTimeout(() => alertDiv.remove(), 150);
+        }, 5000);
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        // DOM elements
+        const registrationForm = document.getElementById('registrationForm');
+        const studentId = document.getElementById('studentId');
+        const studentName = document.getElementById('studentName');
+        const registerBtn = document.getElementById('registerBtn');
+        const clearFormBtn = document.getElementById('clearFormBtn');
+        const resetFormBtn = document.getElementById('resetFormBtn');
+        const startCameraBtn = document.getElementById('startCameraBtn');
+        const saveProfileBtn = document.getElementById('saveProfileBtn');
+        const trainModelBtn = document.getElementById('trainModelBtn');
+        const captureCount = document.getElementById('captureCount');
+        const captureProgress = document.getElementById('captureProgress');
+        const captureStatus = document.getElementById('captureStatus');
+        const capturedPhotos = document.getElementById('capturedPhotos');
+        const videoElement = document.getElementById('videoElement');
+        const canvas = document.getElementById('canvas');
+        const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+        const cameraOverlay = document.getElementById('cameraOverlay');
+        const modelStatus = document.getElementById('modelStatus');
+        const trainingProgress = document.getElementById('trainingProgress');
+        const lastRegistered = document.getElementById('lastRegistered');
+        
+        // Variables
+        let streamRef = null;
+        let capturedImages = [];
+        let totalImages = 100;  // Increased from 20 to 100 for better model accuracy
+        let captureInterval = null;
+        let isCapturing = false;
+        let registeredStudentId = '';
+        let registeredStudentName = '';
+        
+        // Clear form fields
+        clearFormBtn.addEventListener('click', function() {
+            studentId.value = '';
+            studentName.value = '';
+            studentId.focus();
+        });
+        
+        // Reset the entire form and camera
+        resetFormBtn.addEventListener('click', function() {
+            if (confirm('Are you sure you want to reset the form? This will clear all data and stop the camera.')) {
+                resetEverything();
+            }
+        });
+        
+        // Handle form submission
+        registrationForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Basic validation
+            if (!studentId.value.trim() || !studentName.value.trim()) {
+                alert('Please enter both student ID and name');
+                return;
+            }
+            
+            // Register the student via API
+            const formData = new FormData(registrationForm);
+            
+            fetch('/api/register-student', {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Registration successful
+                    showAlert('success', data.message);
+                    registerBtn.disabled = true;
+                    startCameraBtn.disabled = false;
+                    captureStatus.textContent = 'Ready to capture';
+                    captureStatus.className = 'badge bg-info';
+                    
+                    // Store registered student info
+                    registeredStudentId = studentId.value.trim();
+                    registeredStudentName = studentName.value.trim();
+                    
+                    // Update UI
+                    trainModelBtn.disabled = false;
+                    modelStatus.textContent = 'Needs Training';
+                    modelStatus.className = 'badge bg-warning';
+                    
+                    // Show instructions
+                    alert('Student registered successfully! Click "Start Camera" to begin capturing facial data.');
+                } else {
+                    // Registration failed
+                    showAlert('danger', data.message);
+                }
+            })
+            .catch(error => {
+                showAlert('danger', 'Error registering student: ' + error);
+            });
+        });
+        
+        // Start camera button
+        startCameraBtn.addEventListener('click', function() {
+            startCamera();
+        });
+        
+        // Save profile button
+        saveProfileBtn.addEventListener('click', function() {
+            saveProfile();
+        });
+        
+        // Train model button
+        trainModelBtn.addEventListener('click', function() {
+            trainModel();
+        });
+        
+        // Start camera function
+        function startCamera() {
+            cameraOverlay.style.display = 'flex';
+            
+            // Request camera access
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(function(stream) {
+                    streamRef = stream;
+                    videoElement.srcObject = stream;
+                    videoElement.style.display = 'block';
+                    cameraPlaceholder.style.display = 'none';
+                    cameraOverlay.style.display = 'none';
+                    
+                    // Update status
+                    captureStatus.textContent = 'Camera Ready';
+                    captureStatus.className = 'badge bg-success';
+                    
+                    // Enable start capturing
+                    startCapturing();
+                })
+                .catch(function(err) {
+                    console.error('Error accessing camera: ', err);
+                    cameraOverlay.style.display = 'none';
+                    showAlert('danger', 'Could not access camera. Please ensure you have a camera connected and you have granted permission.');
+                });
+        }
+        
+        // Start capturing images
+        function startCapturing() {
+            if (isCapturing) return;
+            
+            isCapturing = true;
+            capturedImages = [];
+            capturedPhotos.innerHTML = '';
+            captureCount.textContent = `0/${totalImages}`;
+            captureProgress.style.width = '0%';
+            captureStatus.textContent = 'Capturing...';
+            captureStatus.className = 'badge bg-primary';
+            
+            // Set up interval to capture images
+            captureInterval = setInterval(function() {
+                if (capturedImages.length >= totalImages) {
+                    stopCapturing();
+                    return;
+                }
+                
+                captureImage();
+                
+                // Update progress
+                const progress = (capturedImages.length / totalImages) * 100;
+                captureProgress.style.width = `${progress}%`;
+                captureCount.textContent = `${capturedImages.length}/${totalImages}`;
+            }, 500);  // Capture every 500ms
+        }
+        
+        // Capture a single image
+        function captureImage() {
+            const context = canvas.getContext('2d');
+            canvas.width = videoElement.videoWidth;
+            canvas.height = videoElement.videoHeight;
+            context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+            
+            // Convert to data URL
+            const imageData = canvas.toDataURL('image/jpeg');
+            capturedImages.push(imageData);
+            
+            // Add to display
+            const img = document.createElement('img');
+            img.src = imageData;
+            img.className = 'captured-img';
+            capturedPhotos.appendChild(img);
+            
+            // Save image to server
+            saveImageToServer(imageData, capturedImages.length);
+        }
+        
+        // Stop capturing
+        function stopCapturing() {
+            clearInterval(captureInterval);
+            isCapturing = false;
+            
+            captureStatus.textContent = 'Capture Complete';
+            captureStatus.className = 'badge bg-success';
+            startCameraBtn.disabled = true;
+            saveProfileBtn.disabled = false;
+        }
+        
+        // Save image to server
+        function saveImageToServer(imageData, imageCount) {
+            // Get CSRF token from meta tag
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            
+            fetch('/api/save-captured-image', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    image_data: imageData,
+                    student_id: registeredStudentId,
+                    student_name: registeredStudentName,
+                    image_count: imageCount
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    console.error('Error saving image:', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error saving image:', error);
+            });
+        }
+        
+        // Save profile
+        function saveProfile() {
+            if (capturedImages.length < totalImages) {
+                if (!confirm(`Only ${capturedImages.length} out of ${totalImages} images captured. Are you sure you want to proceed?`)) {
+                    return;
+                }
+            }
+            
+            // Stop any ongoing capture and camera
+            stopCamera();
+            
+            captureStatus.textContent = 'Profile Saved';
+            captureStatus.className = 'badge bg-success';
+            saveProfileBtn.disabled = true;
+            
+            // Update UI
+            const totalRegistrations = document.getElementById('totalRegistrations');
+            totalRegistrations.textContent = parseInt(totalRegistrations.textContent) + 1;
+            lastRegistered.textContent = `${registeredStudentName} (${registeredStudentId})`;
+            
+            showAlert('success', `Profile for ${registeredStudentName} saved successfully. You can register another student or train the model.`);
+            
+            // Reset form for new registration
+            studentId.value = '';
+            studentName.value = '';
+            registerBtn.disabled = false;
+            resetCapturingUI();
+        }
+        
+        // Train the model
+        function trainModel() {
+            if (!confirm('Training the model may take some time. Do you want to proceed?')) {
+                return;
+            }
+            
+            const progressContainer = document.querySelector('.progress-container');
+            progressContainer.classList.remove('d-none');
+            trainingProgress.style.width = '0%';
+            trainModelBtn.disabled = true;
+            modelStatus.textContent = 'Training...';
+            modelStatus.className = 'badge bg-info';
+            
+            // Start training via API
+            // Get CSRF token from meta tag
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            
+            fetch('/api/train-model', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Start checking training status
+                    checkTrainingStatus();
+                } else {
+                    showAlert('danger', data.message);
+                    resetTrainingUI();
+                }
+            })
+            .catch(error => {
+                showAlert('danger', 'Error starting training: ' + error);
+                resetTrainingUI();
+            });
+        }
+        
+        // Check training status
+        function checkTrainingStatus() {
+            let progress = 0;
+            const statusInterval = setInterval(function() {
+                // Get CSRF token from meta tag
+                const csrfTokenStatus = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                
+                fetch('/api/training-status', {
+                    headers: {
+                        'X-CSRFToken': csrfTokenStatus
+                    },
+                    credentials: 'same-origin'
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'completed') {
+                            clearInterval(statusInterval);
+                            trainingProgress.style.width = '100%';
+                            modelStatus.textContent = 'Trained';
+                            modelStatus.className = 'badge bg-success';
+                            trainModelBtn.disabled = false;
+                            showAlert('success', 'Model trained successfully!');
+                            setTimeout(() => {
+                                document.querySelector('.progress-container').classList.add('d-none');
+                            }, 3000);
+                        } else if (data.status === 'error') {
+                            clearInterval(statusInterval);
+                            resetTrainingUI();
+                            showAlert('danger', data.message);
+                        } else {
+                            // Update progress
+                            progress = Math.min(progress + 10, 95);  // Increment but cap at 95% until complete
+                            trainingProgress.style.width = `${progress}%`;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error checking training status:', error);
+                    });
+            }, 1000);
+        }
+        
+        // Stop the camera
+        function stopCamera() {
+            if (streamRef) {
+                streamRef.getTracks().forEach(track => track.stop());
+                streamRef = null;
+            }
+            videoElement.srcObject = null;
+            videoElement.style.display = 'none';
+            cameraPlaceholder.style.display = 'flex';
+            clearInterval(captureInterval);
+            isCapturing = false;
+        }
+        
+        // Reset everything
+        function resetEverything() {
+            stopCamera();
+            resetCapturingUI();
+            studentId.value = '';
+            studentName.value = '';
+            registerBtn.disabled = false;
+            capturedImages = [];
+            capturedPhotos.innerHTML = '';
+            registeredStudentId = '';
+            registeredStudentName = '';
+        }
+        
+        // Reset capturing UI
+        function resetCapturingUI() {
+            captureStatus.textContent = 'Waiting for registration';
+            captureStatus.className = 'badge bg-primary';
+            captureCount.textContent = `0/${totalImages}`;
+            captureProgress.style.width = '0%';
+            capturedPhotos.innerHTML = '';
+            startCameraBtn.disabled = true;
+            saveProfileBtn.disabled = true;
+        }
+        
+        // Reset training UI
+        function resetTrainingUI() {
+            const progressContainer = document.querySelector('.progress-container');
+            progressContainer.classList.add('d-none');
+            trainingProgress.style.width = '0%';
+            trainModelBtn.disabled = false;
+            modelStatus.textContent = 'Not Trained';
+            modelStatus.className = 'badge bg-warning';
+        }
+        
+        // Show alert
+        function showAlert(type, message) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            
+            const container = document.querySelector('main.container');
+            container.insertBefore(alertDiv, container.firstChild);
+            
+            // Auto dismiss after 5 seconds
+            setTimeout(() => {
+                alertDiv.classList.remove('show');
+                setTimeout(() => alertDiv.remove(), 200);
+            }, 5000);
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,10 @@
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .icon-stroke { stroke: #1976D2; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+    .icon-fill { fill: #1976D2; }
+  </style>
+  
+  <circle cx="16" cy="10" r="6" class="icon-stroke" />
+  <path d="M28 28c0-6.627-5.373-12-12-12S4 21.373 4 28" class="icon-stroke" />
+  <rect x="12" y="18" width="8" height="2" rx="1" class="icon-fill" />
+</svg>

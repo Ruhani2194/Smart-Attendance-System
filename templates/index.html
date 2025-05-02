@@ -1,0 +1,114 @@
+
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Smart Attendance System Preview</title>
+        <style>
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                margin: 0;
+                padding: 20px;
+                background-color: #f5f5f5;
+                color: #333;
+            }
+            h1 {
+                color: #1976d2;
+                margin-bottom: 20px;
+                text-align: center;
+            }
+            .description {
+                background-color: white;
+                padding: 20px;
+                border-radius: 5px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                margin-bottom: 20px;
+                line-height: 1.6;
+            }
+            .preview-container {
+                display: flex;
+                flex-direction: column;
+                gap: 30px;
+                align-items: center;
+                margin-top: 30px;
+            }
+            .preview-item {
+                background-color: white;
+                padding: 20px;
+                border-radius: 5px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                width: 840px;
+                max-width: 100%;
+            }
+            .preview-item h2 {
+                color: #1976d2;
+                margin-top: 0;
+                padding-bottom: 10px;
+                border-bottom: 1px solid #eee;
+            }
+            .preview-item img {
+                width: 100%;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+            }
+            .feature-list {
+                list-style-type: none;
+                padding: 0;
+            }
+            .feature-list li {
+                padding: 8px 0;
+                padding-left: 25px;
+                position: relative;
+            }
+            .feature-list li::before {
+                content: "✓";
+                color: #4caf50;
+                font-weight: bold;
+                position: absolute;
+                left: 0;
+            }
+            .feature-list li.in-progress::before {
+                content: "→";
+                color: #ff9800;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Smart Attendance System Preview</h1>
+        
+        <div class="description">
+            <h2>Elegant UI/UX Redesign</h2>
+            <p>The Smart Attendance System has been redesigned with a clean, modern interface that improves usability while maintaining all original functionality.</p>
+            
+            <h3>Key Features:</h3>
+            <ul class="feature-list">
+                <li>Modern tabbed interface with Registration, Attendance, and View Records sections</li>
+                <li>Clean, professional styling with a consistent color scheme</li>
+                <li>Interactive components with tooltips and visual feedback</li>
+                <li>Animated progress indicators and responsive layout</li>
+                <li>Improved visual organization with frames and card layouts</li>
+                <li class="in-progress">Enhanced face recognition with real-time feedback</li>
+            </ul>
+        </div>
+        
+        <div class="preview-container">
+            <div class="preview-item">
+                <h2>Registration Tab</h2>
+                <p>Allows administrators to register new students by capturing facial images and saving their profiles.</p>
+                <img src="/static/registration_preview.png" alt="Registration Tab Preview">
+            </div>
+            
+            <div class="preview-item">
+                <h2>Take Attendance Tab</h2>
+                <p>Enables automatic attendance tracking using facial recognition technology.</p>
+                <img src="/static/attendance_preview.png" alt="Attendance Tab Preview">
+            </div>
+            
+            <div class="preview-item">
+                <h2>View Attendance Tab</h2>
+                <p>Provides access to attendance records with filtering, viewing, and export capabilities.</p>
+                <img src="/static/view_preview.png" alt="View Attendance Tab Preview">
+            </div>
+        </div>
+    </body>
+    </html>
+    
