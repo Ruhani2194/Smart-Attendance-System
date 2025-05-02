@@ -8,3 +8,5 @@ poetry config virtualenvs.create false
 
 # Install dependencies
 poetry install --no-interaction --no-ansi
+#!/usr/bin/env bash
+poetry install
