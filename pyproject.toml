@@ -3,8 +3,11 @@ name = "repl-nix-workspace"
 version = "0.1.0"
 description = "Add your description here"
 authors = ["Your Name <yourname@example.com>"]
+# Specify the supported Python version
+python = ">=3.9,<3.13"
 
 [tool.poetry.dependencies]
+python = ">=3.9,<3.13"  # Add this line to explicitly specify Python version
 flask-login = ">=0.6.3"
 flask = ">=3.1.0"
 numpy = ">=2.2.5"
