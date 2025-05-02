@@ -1,17 +1,20 @@
-[project]
+[tool.poetry]
 name = "repl-nix-workspace"
 version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.11"
 package-mode = false
-dependencies = [
-    "flask-login>=0.6.3",
-    "flask>=3.1.0",
-    "numpy>=2.2.5",
-    "opencv-python>=4.11.0.86",
-    "pandas>=2.2.3",
-    "pillow>=11.2.1",
-    "pyttsx3>=2.98",
-    "ttkthemes>=3.2.2",
-    "flask-wtf>=1.2.2",
-]
+
+[tool.poetry.dependencies]
+flask-login = ">=0.6.3"
+flask = ">=3.1.0"
+numpy = ">=2.2.5"
+opencv-python = ">=4.11.0.86"
+pandas = ">=2.2.3"
+pillow = ">=11.2.1"
+pyttsx3 = ">=2.98"
+ttkthemes = ">=3.2.2"
+flask-wtf = ">=1.2.2"
+
+[tool.poetry.packages]
+packages = [{ include = "src" }]  # This includes your source code in the "src" directory
