@@ -2,8 +2,7 @@
 name = "repl-nix-workspace"
 version = "0.1.0"
 description = "Add your description here"
-requires-python = ">=3.11"
-package-mode = false
+authors = ["Your Name <yourname@example.com>"]
 
 [tool.poetry.dependencies]
 flask-login = ">=0.6.3"
@@ -17,4 +16,8 @@ ttkthemes = ">=3.2.2"
 flask-wtf = ">=1.2.2"
 
 [tool.poetry.packages]
-packages = [{ include = "src" }]  # This includes your source code in the "src" directory
+packages = [{ include = "src" }]  # Make sure this is an array
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
